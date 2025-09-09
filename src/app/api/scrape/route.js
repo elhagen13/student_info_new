@@ -1,13 +1,14 @@
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
   let browser;
   let page;
-
+  
   try {
     const { url } = await request.json();
-
+    
     if (!url) {
       return NextResponse.json(
         { message: 'URL is required' },
@@ -15,35 +16,30 @@ export async function POST(request) {
       );
     }
 
-    // Launch Puppeteer browser
+    // Launch Puppeteer browser with Sparticuz Chromium
     browser = await puppeteer.launch({
-      headless: true, // Run in headless mode
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-extensions',
-        '--disable-web-security',
-        '--disable-features=VizDisplayCompositor'
-      ]
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
+      ignoreHTTPSErrors: true,
     });
 
     // Create a new page
     page = await browser.newPage();
-
-    // Set viewport size
+    
+    // Set viewport size (optional, as defaultViewport is already set)
     await page.setViewport({ width: 1920, height: 1080 });
-
+    
     // Navigate to the URL
-    await page.goto(url, { 
+    await page.goto(url, {
       waitUntil: 'networkidle0', // Wait until no network requests for 500ms
       timeout: 30000 // 30 second timeout
     });
 
     // Get the page content (HTML)
     const htmlContent = await page.content();
-
+    
     // Get page title
     const title = await page.title();
 
