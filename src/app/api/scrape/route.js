@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request) {
   const { url } = await request.json();
+  
   if (!url) {
     return new NextResponse("Please provide a URL.", { status: 400 });
   }
@@ -28,26 +29,34 @@ export async function POST(request) {
   let browser;
   try {
     const isVercel = !!process.env.VERCEL_ENV;
-    let puppeteer,
-      launchOptions = {
-        headless: true,
-      };
 
     if (isVercel) {
-      const chromium = (await import("@sparticuz/chromium")).default;
-      puppeteer = await import("puppeteer-core");
-      launchOptions = {
-        ...launchOptions,
-        args: chromium.args,
-        executablePath: await chromium.executablePath(),
-      };
+      // Use Playwright for Vercel deployment
+      const { chromium } = await import("playwright-core");
+      
+      browser = await chromium.launch({
+        headless: true,
+      });
     } else {
-      puppeteer = await import("puppeteer");
+      // Use regular Puppeteer for local development
+      const puppeteer = await import("puppeteer");
+      browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
     }
 
-    browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
-    await page.goto(parsedUrl.toString(), { waitUntil: "networkidle2" });
+    
+    // Set a user agent to avoid bot detection
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+    
+    // Navigate to the page
+    await page.goto(parsedUrl.toString(), { 
+      waitUntil: isVercel ? "networkidle" : "networkidle2",
+      timeout: 30000 
+    });
+    
     const htmlContent = await page.content();
     const title = await page.title();
 
@@ -55,19 +64,36 @@ export async function POST(request) {
       success: true,
       title,
       html: htmlContent,
-      url
+      url: inputUrl
     });
 
-
   } catch (error) {
-    console.error(error);
-    return new NextResponse(
-      "An error occurred while generating the screenshot.",
-      { status: 500 }
-    );
+    console.error("Browser error:", error);
+    
+    // Return more specific error messages
+    if (error.message.includes('Failed to launch')) {
+      return new NextResponse(
+        "Failed to launch browser. This might be due to missing dependencies.",
+        { status: 500 }
+      );
+    } else if (error.message.includes('timeout')) {
+      return new NextResponse(
+        "The webpage took too long to load. Please try again.",
+        { status: 408 }
+      );
+    } else {
+      return new NextResponse(
+        "An error occurred while processing the webpage.",
+        { status: 500 }
+      );
+    }
   } finally {
     if (browser) {
-      await browser.close();
+      try {
+        await browser.close();
+      } catch (closeError) {
+        console.error("Error closing browser:", closeError);
+      }
     }
   }
 }
