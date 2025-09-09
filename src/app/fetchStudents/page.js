@@ -1,6 +1,6 @@
 "use client";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import {
   Box,
   Button,
@@ -12,9 +12,12 @@ import {
   useToast,
   VStack,
   Code,
+  Spinner,
+  Center,
 } from "@chakra-ui/react";
 
-export default function FetchingPage() {
+// Separate component that uses useSearchParams
+function FetchingContent() {
   const [messages, setMessages] = useState([]);
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -171,5 +174,26 @@ export default function FetchingPage() {
         </List>
       </VStack>
     </Box>
+  );
+}
+
+// Loading fallback component
+function LoadingFallback() {
+  return (
+    <Center h="200px">
+      <VStack>
+        <Spinner size="xl" />
+        <Text>Loading...</Text>
+      </VStack>
+    </Center>
+  );
+}
+
+// Main component that wraps the content in Suspense
+export default function FetchingPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <FetchingContent />
+    </Suspense>
   );
 }
