@@ -26,29 +26,37 @@ export async function POST(request) {
 
       browser = await playwright.chromium.launch({
         args: chromium.args,
-        executablePath: await chromium.executablePath(),
+        executablePath: chromium.executablePath, // ✅ string, not a function
         headless: chromium.headless,
       });
     } else {
       const puppeteer = await import("puppeteer");
       browser = await puppeteer.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
       });
     }
 
     const page = await browser.newPage();
     await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +
-      'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+        "AppleWebKit/537.36 (KHTML, like Gecko) " +
+        "Chrome/91.0.4472.124 Safari/537.36"
     );
-    await page.goto(parsedUrl.toString(), { waitUntil: "domcontentloaded", timeout: 30000 });
+    await page.goto(parsedUrl.toString(), {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
+    });
 
     const htmlContent = await page.content();
     const title = await page.title();
 
-    return NextResponse.json({ success: true, title, html: htmlContent, url: inputUrl });
-
+    return NextResponse.json({
+      success: true,
+      title,
+      html: htmlContent,
+      url: inputUrl,
+    });
   } catch (error) {
     console.error("Browser error:", error);
     return new NextResponse("Failed to scrape page", { status: 500 });
